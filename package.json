@@ -1,0 +1,28 @@
+{
+  "name": "mneva-connect",
+  "version": "0.2.0",
+  "description": "Connect your coding agent to its hosted Mneva brain — persistent memory, belief revision, instinct, dreams, calibration, allostatic state, and multi-agent observation over MCP.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mrshanebarron/mneva-connect.git"
+  },
+  "homepage": "https://mneva.dev",
+  "bugs": "https://github.com/mrshanebarron/mneva-connect/issues",
+  "author": "Shane Barron (Barron AI Solutions)",
+  "type": "module",
+  "bin": {
+    "mneva-connect": "./src/index.js"
+  },
+  "scripts": {
+    "prove": "node src/prove.js"
+  },
+  "files": ["src"],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": ["mcp", "ai", "memory", "agent", "mneva", "claude", "cursor"],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  }
+}
