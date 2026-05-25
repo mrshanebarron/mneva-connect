@@ -23,15 +23,19 @@
  * Env:
  *   MNEVA_KEY   (required) — your tenant API key from the Mneva dashboard
  *   MNEVA_API   (optional) — engine base URL, defaults to the hosted service
- *   MNEVA_AGENT (optional) — agent name on a team brain; defaults to "default"
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 
+// Defaults to the hosted Mneva service. Override MNEVA_API only for
+// self-hosting or local development against your own engine.
 const API = (process.env.MNEVA_API || 'https://mneva.dev').replace(/\/$/, '');
 const KEY = process.env.MNEVA_KEY;
+// Optional agent identity for the Team plan — multiple agents share one
+// brain and observe each other. Defaults to 'default' so solo use is
+// unaffected. Set MNEVA_AGENT=alice (or coda, or whatever) in .mcp.json.
 const AGENT = process.env.MNEVA_AGENT || 'default';
 
 if (!KEY) {
@@ -45,30 +49,16 @@ if (!KEY) {
 const json = (data) => ({ content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] });
 const fail = (msg) => ({ content: [{ type: 'text', text: `error: ${msg}` }], isError: true });
 
-const headers = () => ({
-  'content-type': 'application/json',
-  'x-mneva-key': KEY,
-  'x-mneva-agent': AGENT,
-});
-
-async function call(method, path, body) {
-  let url = `${API}/v1/${path}`;
-  const init = { method, headers: headers(), signal: AbortSignal.timeout(20000) };
-  if (method === 'GET') {
-    if (body && Object.keys(body).length) {
-      const qs = new URLSearchParams();
-      for (const [k, v] of Object.entries(body)) {
-        if (v !== undefined && v !== null) qs.set(k, String(v));
-      }
-      const s = qs.toString();
-      if (s) url += `?${s}`;
-    }
-  } else {
-    init.body = JSON.stringify(body || {});
-  }
+/** Forward one tool call to the hosted brain (POST). */
+async function call(path, body) {
   let res;
   try {
-    res = await fetch(url, init);
+    res = await fetch(`${API}/v1/${path}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-mneva-key': KEY, 'x-mneva-agent': AGENT },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(20000),
+    });
   } catch (err) {
     return fail(`could not reach your Mneva brain (${err.message})`);
   }
@@ -83,12 +73,32 @@ async function call(method, path, body) {
   return json(data);
 }
 
-const post = (path, body) => call('POST', path, body);
-const get = (path, query) => call('GET', path, query);
+/** Read from the hosted brain (GET). For endpoints that don't take a body. */
+async function getJson(path, params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  let res;
+  try {
+    res = await fetch(`${API}/v1/${path}${qs ? `?${qs}` : ''}`, {
+      method: 'GET',
+      headers: { 'x-mneva-key': KEY, 'x-mneva-agent': AGENT },
+      signal: AbortSignal.timeout(20000),
+    });
+  } catch (err) {
+    return fail(`could not reach your Mneva brain (${err.message})`);
+  }
+  if (res.status === 401) return fail('your MNEVA_KEY is invalid — check it in the Mneva dashboard');
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    return fail(`unexpected response from the Mneva engine (HTTP ${res.status})`);
+  }
+  if (!res.ok) return fail(data.error || `Mneva engine error (HTTP ${res.status})`);
+  return json(data);
+}
 
-const server = new McpServer({ name: 'mneva', version: '0.2.0' });
+const server = new McpServer({ name: 'mneva', version: '0.7.1' });
 
-// ── Memory ────────────────────────────────────────────────────────────
 server.registerTool(
   'remember',
   {
@@ -96,7 +106,7 @@ server.registerTool(
       'Record something that happened in this project — a decision, a fix, a fact. Your hosted Mneva brain keeps it across every session and every tool.',
     inputSchema: { text: z.string().describe('What to remember.') },
   },
-  ({ text }) => post('remember', { text }),
+  ({ text }) => call('remember', { text }),
 );
 
 server.registerTool(
@@ -106,20 +116,9 @@ server.registerTool(
       'Recall past memories related to a query — semantic, so it finds relevant memories even with no shared words. You do not start cold.',
     inputSchema: { query: z.string().describe('What to recall about.') },
   },
-  ({ query }) => post('recall', { query }),
+  ({ query }) => call('recall', { query }),
 );
 
-server.registerTool(
-  'recall_dreams',
-  {
-    description:
-      'Surface unprompted thoughts your Mneva brain produced overnight — recombinations of memories that found a connection worth saying. Dreams surface once; reading them marks them seen. Call this at the start of a session.',
-    inputSchema: { limit: z.number().int().min(1).max(20).optional().describe('Max dreams to return. Default 5.') },
-  },
-  ({ limit }) => get('dreams', { limit }),
-);
-
-// ── Beliefs ──────────────────────────────────────────────────────────
 server.registerTool(
   'believe',
   {
@@ -129,7 +128,7 @@ server.registerTool(
       confidence: z.number().min(0).max(1).optional(),
     },
   },
-  ({ text, confidence }) => post('believe', { text, confidence }),
+  ({ text, confidence }) => call('believe', { text, confidence }),
 );
 
 server.registerTool(
@@ -143,35 +142,9 @@ server.registerTool(
       confidence: z.number().min(0).max(1).optional(),
     },
   },
-  ({ belief_id, new_text, confidence }) => post('revise', { belief_id, new_text, confidence }),
+  ({ belief_id, new_text, confidence }) => call('revise', { belief_id, new_text, confidence }),
 );
 
-server.registerTool(
-  'evidence',
-  {
-    description:
-      'Record one supporting or refuting observation against a belief. Mneva runs sequential probability ratio testing (SPRT) on accumulated evidence; when the log-likelihood crosses the promote or demote threshold, confidence shifts. This is how a belief earns its place over time.',
-    inputSchema: {
-      belief_id: z.number().int().describe('Id of the belief.'),
-      kind: z.enum(['supporting', 'refuting']).describe('Does this evidence support or refute the belief?'),
-      strength: z.number().min(0.1).max(0.9).describe('How strong is this observation? 0.1..0.9, clamped.'),
-      note: z.string().optional().describe('Optional context for the audit trail.'),
-    },
-  },
-  ({ belief_id, kind, strength, note }) => post('evidence', { belief_id, kind, strength, note }),
-);
-
-server.registerTool(
-  'evidence_for',
-  {
-    description:
-      'See the evidence trail behind a belief — every supporting or refuting observation, with strengths and timestamps. Answers "why is this belief at confidence X?" instead of taking the number on faith.',
-    inputSchema: { belief_id: z.number().int().describe('Id of the belief to inspect.') },
-  },
-  ({ belief_id }) => get(`evidence/${belief_id}`),
-);
-
-// ── Instinct ─────────────────────────────────────────────────────────
 server.registerTool(
   'flag',
   {
@@ -182,112 +155,158 @@ server.registerTool(
       caution: z.number().min(0).max(1).optional(),
     },
   },
-  ({ text, caution }) => post('flag', { text, caution }),
+  ({ text, caution }) => call('flag', { text, caution }),
 );
 
 server.registerTool(
   'assess',
   {
     description:
-      'Gut-check a topic before working on it. Returns clear, caution, or danger with the reason — the partner\'s instinct, backed by past predictions that were confidently wrong on this kind of thing.',
+      'Gut-check a topic before working on it. Returns clear, caution, or danger with the reason — the partner\'s instinct.',
     inputSchema: { topic: z.string().describe('What you are about to work on.') },
   },
-  ({ topic }) => post('assess', { topic }),
+  ({ topic }) => call('assess', { topic }),
 );
 
-// ── Predictions ──────────────────────────────────────────────────────
+server.registerTool(
+  'recall_dreams',
+  {
+    description:
+      'Surface unprompted thoughts your Mneva brain produced between sessions — nightly recombinations of your memories that found a connection worth saying. Dreams surface ONCE; reading them marks them seen. Call this at the start of a session to see what your brain noticed while you were gone.',
+    inputSchema: {
+      limit: z.number().int().min(1).max(20).optional().describe('Max dreams to return (default 5).'),
+    },
+  },
+  ({ limit }) => getJson('dreams', limit ? { limit: String(limit) } : {}),
+);
+
 server.registerTool(
   'predict',
   {
     description:
-      'Record a falsifiable prediction so it can be resolved later and fed into calibration. State the prediction so it is testable; pick a domain label (e.g. "schema", "deploy", "perf") so calibration can group it.',
+      'Record a falsifiable prediction so it can be checked later. Use a short domain label (e.g. "deploy", "schema", "user-flow") — predictions cluster by domain for calibration. Confidence is 0.0-1.0. Past predictions become the foundation of assess: an instinct earns trust by being measured.',
     inputSchema: {
-      prediction: z.string().describe('What you expect to happen. State it falsifiably.'),
-      domain: z.string().describe('Short label that groups predictions for calibration.'),
-      confidence: z.number().min(0).max(1).optional().describe('How sure you are. Default 0.5.'),
-      basis: z.string().optional().describe('Why you think this — useful when reviewing surprises.'),
+      prediction: z.string().describe('What you expect to happen.'),
+      domain: z.string().describe('Short label to group predictions for calibration (e.g. "deploy").'),
+      confidence: z.number().min(0).max(1).optional().describe('How sure are you? 0.0-1.0, default 0.5.'),
+      basis: z.string().optional().describe('Why you think this — optional, but useful when reviewing surprises.'),
     },
   },
-  ({ prediction, domain, confidence, basis }) => post('predict', { prediction, domain, confidence, basis }),
+  ({ prediction, domain, confidence, basis }) =>
+    call('predict', { prediction, domain, confidence, basis }),
 );
 
 server.registerTool(
   'resolve',
   {
     description:
-      'Close out a prediction with what actually happened. The surprise value (auto-derived if you do not supply one) feeds calibration so future assess calls can show your track record.',
+      'Close out a prediction with what actually happened. outcome is correct, incorrect, or partial. The surprise value (auto-derived if omitted) feeds calibration — confident wrong predictions teach more than hedged wrong ones.',
     inputSchema: {
       prediction_id: z.number().int().describe('Id of the prediction to resolve.'),
-      outcome: z.enum(['correct', 'incorrect', 'partial']),
+      outcome: z.enum(['correct', 'incorrect', 'partial']).describe('How it landed.'),
       actual: z.string().describe('What actually happened.'),
-      surprise: z.number().min(0).max(1).optional().describe('Override the auto-derived surprise.'),
+      surprise: z.number().min(0).max(1).optional().describe('Optional override 0-1; auto-derived from outcome+confidence if omitted.'),
     },
   },
   ({ prediction_id, outcome, actual, surprise }) =>
-    post('resolve', { prediction_id, outcome, actual, surprise }),
+    call('resolve', { prediction_id, outcome, actual, surprise }),
 );
 
 server.registerTool(
   'predictions_open',
   {
     description:
-      'List predictions you have made but have not yet resolved. Oldest first — surfaces stale commitments so they do not get forgotten.',
-    inputSchema: { limit: z.number().int().min(1).max(50).optional().describe('Max to return. Default 20.') },
+      'List predictions you made but have not yet resolved. Oldest first — surfaces stale commitments. Check this when you start a session or before assess to see what you owe answers on.',
+    inputSchema: {
+      limit: z.number().int().min(1).max(50).optional().describe('Max predictions to return (default 20).'),
+    },
   },
-  ({ limit }) => get('predictions/open', { limit }),
+  ({ limit }) => getJson('predictions/open', limit ? { limit: String(limit) } : {}),
 );
 
 server.registerTool(
   'calibration',
   {
     description:
-      'Your own track record, by domain. For each prediction domain you have worked in, returns accuracy, the confidence gap, brier score, and mean surprise. This is your epistemic mirror.',
+      'Your own track record, by domain. For each prediction domain you have worked in, returns accuracy, the confidence_gap (how much higher your confidence runs when you are right vs wrong — positive means your confidence is informative, negative means discount it), and mean surprise. This is your epistemic mirror: where to trust your gut and where to slow down. Use before working in a domain where you have prior predictions.',
     inputSchema: {
-      since_days: z.number().int().min(1).optional().describe('Look-back window in days. Omit for all time.'),
+      since_days: z.number().int().min(1).optional().describe('Only count predictions resolved in the last N days. Default: all time.'),
     },
   },
-  ({ since_days }) => get('calibration', { since_days }),
+  ({ since_days }) => getJson('calibration', since_days ? { since_days: String(since_days) } : {}),
 );
 
-// ── State ────────────────────────────────────────────────────────────
+server.registerTool(
+  'evidence',
+  {
+    description:
+      'Record one supporting or refuting observation against a belief. Mneva runs a sequential probability ratio test (SPRT): when accumulated evidence crosses the promote threshold (+2.89 log-likelihood), the belief\'s confidence rises; crossing the demote threshold (-2.25) is the signal to call revise. This is how a belief earns its place over time — every evidence event is recorded and the audit trail is queryable via evidence_for.',
+    inputSchema: {
+      belief_id: z.number().int().describe('Id of the belief.'),
+      kind: z.enum(['supporting', 'refuting']).describe('Does this evidence support or refute the belief?'),
+      strength: z.number().min(0.1).max(0.9).describe('How probative is the evidence? 0.1 weak, 0.5 moderate, 0.9 strong.'),
+      note: z.string().optional().describe('Optional note about what was observed.'),
+    },
+  },
+  ({ belief_id, kind, strength, note }) =>
+    call('evidence', { belief_id, kind, strength, note }),
+);
+
+server.registerTool(
+  'evidence_for',
+  {
+    description:
+      'See the evidence trail behind a belief — every supporting/refuting observation, with strengths and timestamps. Use this to answer "why is this belief at confidence X?" instead of taking the number on faith.',
+    inputSchema: {
+      belief_id: z.number().int().describe('Id of the belief.'),
+    },
+  },
+  ({ belief_id }) => getJson(`evidence/${belief_id}`),
+);
+
 server.registerTool(
   'state',
   {
     description:
-      'Your brain\'s current allostatic state — rest, engaged, or overloaded — with the load, variance, and reserve numbers behind the verdict. A memory product that knows when it is tired.',
+      "Your brain's current allostatic state — rest, engaged, or overloaded. Returns load (mean tool calls/min over the last 60 min on active minutes), variance, and reserve (headroom against a soft per-minute cap). overloaded means a high or spiky load — the signal to slow down, verify more, batch less. rest means there's room to take on something bigger. A memory product that knows when it's tired.",
     inputSchema: {},
   },
-  () => get('state'),
+  () => getJson('state'),
 );
 
-// ── Multi-agent ──────────────────────────────────────────────────────
 server.registerTool(
   'note_about',
   {
     description:
-      'Record an outside view of another agent sharing this brain. Useful when you notice a teammate-agent\'s pattern; the observation is recall-able by any agent on this brain via outside_views.',
+      "Record an outside view of another agent sharing this brain (Team plan). Useful when you notice a teammate-agent's pattern — \"alice keeps forgetting to call assess before deploys\", \"bob's pricing predictions skew low\". The observation is recall-able by any agent on this brain via outside_views. Self-observation is allowed: subject_agent can be your own MNEVA_AGENT name.",
     inputSchema: {
-      subject_agent: z.string().describe('The agent you are observing (their MNEVA_AGENT name).'),
+      subject_agent: z.string().describe('Which agent you are observing (their MNEVA_AGENT name).'),
       observation: z.string().describe('What you observed.'),
-      kind: z.enum(['characterization', 'feedback', 'pattern']).optional(),
+      kind: z.enum(['characterization', 'feedback', 'pattern']).optional().describe('Optional classification.'),
     },
   },
-  ({ subject_agent, observation, kind }) => post('note_about', { subject_agent, observation, kind }),
+  ({ subject_agent, observation, kind }) =>
+    call('note_about', { subject_agent, observation, kind }),
 );
 
 server.registerTool(
   'outside_views',
   {
     description:
-      'Observations other agents on this brain have left, newest first. The multi-agent dimension — pass your own name as subject_agent to see what teammates say about you.',
+      "Outside views — observations other agents on this brain have left. Pass subject_agent to scope to one agent (including yourself, to see what teammates say about you); omit to see the most recent across all subjects. This is the multi-agent dimension Mem0/Letta/Zep don't surface as a tool.",
     inputSchema: {
-      subject_agent: z.string().optional().describe('Scope to observations about this agent.'),
-      limit: z.number().int().min(1).max(100).optional().describe('Max to return. Default 20.'),
+      subject_agent: z.string().optional().describe('Only return observations about this agent.'),
+      limit: z.number().int().min(1).max(100).optional().describe('Max observations to return (default 20).'),
     },
   },
-  ({ subject_agent, limit }) => get('outside_views', { subject_agent, limit }),
+  ({ subject_agent, limit }) => {
+    const params = {};
+    if (subject_agent) params.subject_agent = subject_agent;
+    if (limit) params.limit = String(limit);
+    return getJson('outside_views', params);
+  },
 );
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
-console.error(`[mneva] connected to your hosted brain at ${API} (agent=${AGENT})`);
+console.error(`[mneva] connected to your hosted brain at ${API}`);
