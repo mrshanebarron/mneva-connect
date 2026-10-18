@@ -1,7 +1,7 @@
 {
   "name": "mneva-connect",
-  "version": "0.7.1",
-  "description": "Connect your coding agent to its hosted Mneva brain — persistent memory, belief revision, and instinct over MCP.",
+  "version": "0.8.0",
+  "description": "Connect your coding agent to its hosted Mneva brain: memory by meaning, belief revision, instinct, overnight dreams, calibration, a timeline, wake/sleep handoffs, corrections that stick, intents and cued reminders over MCP.",
   "type": "module",
   "bin": {
     "mneva-connect": "./src/index.js"
@@ -9,11 +9,21 @@
   "scripts": {
     "prove": "node src/prove.js"
   },
-  "files": ["src"],
+  "files": [
+    "src"
+  ],
   "engines": {
     "node": ">=18"
   },
-  "keywords": ["mcp", "ai", "memory", "agent", "mneva", "claude", "cursor"],
+  "keywords": [
+    "mcp",
+    "ai",
+    "memory",
+    "agent",
+    "mneva",
+    "claude",
+    "cursor"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",

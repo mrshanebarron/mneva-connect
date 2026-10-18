@@ -60,6 +60,20 @@ part that surprises everyone) it thinks while you sleep.
 | `predictions_open` | List unresolved predictions you owe answers on |
 | `calibration` | Your per-domain accuracy and confidence_gap — where to trust your gut, where to slow down |
 
+### Continuity across sessions
+
+| Tool | What it does |
+|------|--------------|
+| `wake` | Call first: how long you were away, the last handoff, what happened since, your first act, open corrections, new dreams |
+| `sleep` | Call last: leave a handoff and, optionally, one first act for next time |
+| `timeline` | The running line of everything the brain did, in order |
+| `correct` | Record that a move was wrong and what to do instead; it rides along on every recall until closed |
+| `corrections` | List the corrections you are still proving |
+| `correction_close` | Close a correction, with proof of the time the new habit held |
+| `intend` | Set one first act for the next session |
+| `intent_done` | Close the first act: done, or missed with a reason |
+| `remind` | A reminder that fires when a later recall or assess touches its cue, matched by meaning |
+
 ### Brain state
 
 | Tool | What it does |

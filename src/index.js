@@ -97,7 +97,7 @@ async function getJson(path, params = {}) {
   return json(data);
 }
 
-const server = new McpServer({ name: 'mneva', version: '0.7.1' });
+const server = new McpServer({ name: 'mneva', version: '0.8.0' });
 
 server.registerTool(
   'remember',
@@ -305,6 +305,122 @@ server.registerTool(
     if (limit) params.limit = String(limit);
     return getJson('outside_views', params);
   },
+);
+
+server.registerTool(
+  'wake',
+  {
+    description:
+      'Call this first in every session. Returns how long you were away, the handoff the last session left, what happened since, the first act you set yourself, any open corrections, new overnight dreams, open predictions and your current state. You start mid-stride instead of cold.',
+    inputSchema: {},
+  },
+  () => call('wake', {}),
+);
+
+server.registerTool(
+  'sleep',
+  {
+    description:
+      'Call this before a session ends. Leave a handoff for the next session: where you got to, what is still open, what to do first. Optionally set one first act (intent) that wake will put in front of you.',
+    inputSchema: {
+      handoff: z.string().describe('Where you got to, what is open, and what matters next.'),
+      intent: z.string().optional().describe('One concrete first act for the next session.'),
+    },
+  },
+  ({ handoff, intent }) => call('sleep', { handoff, intent }),
+);
+
+server.registerTool(
+  'timeline',
+  {
+    description:
+      'The running line: everything this brain did, in order (memories, beliefs, revisions, flags, corrections, reminders, wakes, sleeps, dreams). Use it to answer "when did we decide that" or "what happened yesterday".',
+    inputSchema: {
+      since_days: z.number().min(0).optional().describe('Only events from the last N days.'),
+      kind: z.string().optional().describe('Only one kind, e.g. revise, flag, correction, sleep.'),
+      query: z.string().optional().describe('Only events whose text matches these words.'),
+      limit: z.number().int().min(1).max(200).optional(),
+    },
+  },
+  ({ since_days, kind, query, limit }) => {
+    const params = {};
+    if (since_days != null) params.since_days = String(since_days);
+    if (kind) params.kind = kind;
+    if (query) params.query = query;
+    if (limit) params.limit = String(limit);
+    return getJson('timeline', params);
+  },
+);
+
+server.registerTool(
+  'correct',
+  {
+    description:
+      'Record that a move was wrong and what to do instead. Open on the first clear signal; do not wait for it to happen twice. The correction rides along on every recall and assess until you close it with proof.',
+    inputSchema: {
+      wrong: z.string().describe('What was done that was wrong.'),
+      instead: z.string().describe('What to do instead from now on.'),
+      source: z.enum(['user', 'self', 'review']).optional().describe('Who caught it.'),
+    },
+  },
+  ({ wrong, instead, source }) => call('correct', { wrong, instead, source }),
+);
+
+server.registerTool(
+  'corrections',
+  {
+    description: 'List corrections. Defaults to the open ones you are still proving.',
+    inputSchema: { status: z.enum(['open', 'closed', 'all']).optional() },
+  },
+  ({ status }) => getJson('corrections', status ? { status } : {}),
+);
+
+server.registerTool(
+  'correction_close',
+  {
+    description:
+      'Close a correction once the new behaviour has held at least once. Requires proof: describe the real occasion when you did it the corrected way.',
+    inputSchema: {
+      id: z.number().int().describe('The correction id.'),
+      proof: z.string().min(10).describe('The occasion that proved the new habit.'),
+    },
+  },
+  ({ id, proof }) => call('correction_close', { id, proof }),
+);
+
+server.registerTool(
+  'intend',
+  {
+    description: 'Set one first act for the next session. It replaces any open intent. wake returns it first.',
+    inputSchema: { text: z.string().describe('The first thing to do next time.') },
+  },
+  ({ text }) => call('intend', { text }),
+);
+
+server.registerTool(
+  'intent_done',
+  {
+    description: 'Close the first act: done, or missed with a reason.',
+    inputSchema: {
+      id: z.number().int(),
+      missed: z.boolean().optional(),
+      note: z.string().optional().describe('Required when missed.'),
+    },
+  },
+  ({ id, missed, note }) => call('intent_done', { id, missed, note }),
+);
+
+server.registerTool(
+  'remind',
+  {
+    description:
+      'Prospective memory: a reminder that fires when a later recall or assess touches its cue, matched by meaning. "When anyone touches migrations, remind me to back up production first."',
+    inputSchema: {
+      cue: z.string().describe('The topic that should trigger it.'),
+      text: z.string().describe('What to be reminded of.'),
+    },
+  },
+  ({ cue, text }) => call('remind', { cue, text }),
 );
 
 const transport = new StdioServerTransport();

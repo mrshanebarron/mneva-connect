@@ -74,13 +74,28 @@ console.log('\nThrough mneva-connect, with a valid key:');
   const c = await connector(key);
 
   const tools = (await c.client.listTools()).tools.map((t) => t.name).sort();
-  check('connector exposes all six tools',
-    JSON.stringify(tools) === JSON.stringify(['assess', 'believe', 'flag', 'recall', 'remember', 'revise']),
+  const expected = ['assess', 'believe', 'calibration', 'correct', 'correction_close', 'corrections', 'evidence', 'evidence_for', 'flag', 'intend', 'intent_done', 'note_about', 'outside_views', 'predict', 'predictions_open', 'recall', 'recall_dreams', 'remember', 'remind', 'resolve', 'revise', 'sleep', 'state', 'timeline', 'wake'];
+  check(`connector exposes all ${expected.length} tools`,
+    JSON.stringify(tools) === JSON.stringify(expected),
     `got ${JSON.stringify(tools)}`);
+
+  const corr = await c.call('correct', { wrong: 'pushed straight to main', instead: 'open a pull request' });
+  check('correct opens a correction', !corr.isError && corr.data.status === 'open', JSON.stringify(corr.data));
+  const slept = await c.call('sleep', { handoff: 'Refund job half done.', intent: 'Finish the refund job test.' });
+  check('sleep leaves a handoff and a first act', !slept.isError && slept.data.first_act?.status === 'open', JSON.stringify(slept.data));
+  const woke = await c.call('wake', {});
+  check('wake returns the handoff, first act and open correction',
+    woke.data.handoff?.text === 'Refund job half done.' && woke.data.first_act?.text === 'Finish the refund job test.' && woke.data.corrections?.length === 1,
+    JSON.stringify(woke.data).slice(0, 300));
+  await c.call('remind', { cue: 'deploying to production', text: 'Tell the client before any deploy.' });
+  const a = await c.call('assess', { topic: 'about to deploy the release to production' });
+  check('a reminder fires on its cue through assess', a.data.reminders?.[0]?.text === 'Tell the client before any deploy.', JSON.stringify(a.data).slice(0, 300));
+  const tl = await c.call('timeline', { limit: 50 });
+  check('timeline lists the session in order', Array.isArray(tl.data.events) && tl.data.events.some((e) => e.kind === 'sleep'), JSON.stringify(tl.data).slice(0, 200));
 
   await c.call('remember', { text: 'the deploy script is scripts/ship.sh and needs the staging DB up first' });
   const recalled = await c.call('recall', { query: 'how do we release' });
-  const hits = recalled.data?.results ?? [];
+  const hits = recalled.data?.memories ?? recalled.data?.results ?? [];
   check('remember -> recall reaches the hosted brain (semantic)',
     hits.some((m) => m.text.includes('ship.sh')),
     JSON.stringify(recalled.data));
