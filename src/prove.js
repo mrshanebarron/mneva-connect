@@ -74,10 +74,19 @@ console.log('\nThrough mneva-connect, with a valid key:');
   const c = await connector(key);
 
   const tools = (await c.client.listTools()).tools.map((t) => t.name).sort();
-  const expected = ['assess', 'believe', 'calibration', 'correct', 'correction_close', 'corrections', 'evidence', 'evidence_for', 'flag', 'intend', 'intent_done', 'note_about', 'outside_views', 'predict', 'predictions_open', 'recall', 'recall_dreams', 'remember', 'remind', 'resolve', 'revise', 'sleep', 'state', 'timeline', 'wake'];
+  const expected = ['assess', 'believe', 'calibration', 'claim', 'claim_verify', 'claims', 'correct', 'correction_close', 'corrections', 'evidence', 'evidence_for', 'feel', 'feelings', 'flag', 'intend', 'intent_done', 'name_self', 'note_about', 'notice', 'outside_views', 'patterns', 'person', 'person_note', 'person_retire', 'predict', 'predictions_open', 'recall', 'recall_dreams', 'remember', 'remind', 'resolve', 'revise', 'rule', 'rule_retire', 'rules', 'self', 'self_write', 'sleep', 'state', 'timeline', 'wake'];
   check(`connector exposes all ${expected.length} tools`,
     JSON.stringify(tools) === JSON.stringify(expected),
     `got ${JSON.stringify(tools)}`);
+  check('the server tells the agent how to live in the brain', /call `wake` before anything else/.test(c.client.getInstructions() || ''), String(c.client.getInstructions()).slice(0, 120));
+
+  const named = await c.call('name_self', { name: 'Quill', reason: 'short' });
+  check('name_self names her', named.data.name === 'Quill', JSON.stringify(named.data));
+  const felt = await c.call('feel', { word: 'relief', context: 'the migration ran clean' });
+  check('feel records a feeling', felt.data.word === 'relief', JSON.stringify(felt.data));
+  const cl = await c.call('claim', { text: 'The cache is cleared' });
+  const short = await c.call('claim_verify', { id: cl.data.id, evidence: 'yes' });
+  check('claim_verify refuses thin evidence', short.isError === true, JSON.stringify(short.data));
 
   const corr = await c.call('correct', { wrong: 'pushed straight to main', instead: 'open a pull request' });
   check('correct opens a correction', !corr.isError && corr.data.status === 'open', JSON.stringify(corr.data));
@@ -85,8 +94,8 @@ console.log('\nThrough mneva-connect, with a valid key:');
   check('sleep leaves a handoff and a first act', !slept.isError && slept.data.first_act?.status === 'open', JSON.stringify(slept.data));
   const woke = await c.call('wake', {});
   check('wake returns the handoff, first act and open correction',
-    woke.data.handoff?.text === 'Refund job half done.' && woke.data.first_act?.text === 'Finish the refund job test.' && woke.data.corrections?.length === 1,
-    JSON.stringify(woke.data).slice(0, 300));
+    typeof woke.data === 'string' && woke.data.includes('You are Quill') && woke.data.includes('Refund job half done.') && woke.data.includes('Finish the refund job test.') && woke.data.includes('open a pull request') && woke.data.includes('The cache is cleared'),
+    String(woke.data).slice(0, 400));
   await c.call('remind', { cue: 'deploying to production', text: 'Tell the client before any deploy.' });
   const a = await c.call('assess', { topic: 'about to deploy the release to production' });
   check('a reminder fires on its cue through assess', a.data.reminders?.[0]?.text === 'Tell the client before any deploy.', JSON.stringify(a.data).slice(0, 300));
@@ -115,7 +124,7 @@ console.log('\nWith an invalid key:');
 {
   const c = await connector('mnv_not_a_real_key');
   const res = await c.call('recall', { query: 'anything' });
-  check('invalid key produces a clear error', res.isError === true && /invalid/i.test(res.data),
+  check('invalid key produces a clear error', res.isError === true && /not valid/i.test(res.data),
     JSON.stringify(res));
   await c.end();
 }

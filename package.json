@@ -1,13 +1,14 @@
 {
   "name": "mneva-connect",
-  "version": "0.8.0",
-  "description": "Connect your coding agent to its hosted Mneva brain: memory by meaning, belief revision, instinct, overnight dreams, calibration, a timeline, wake/sleep handoffs, corrections that stick, intents and cued reminders over MCP.",
+  "version": "0.9.0",
+  "description": "Give your coding agent a self that lasts: a name it chooses, who it is in its own words, memory by meaning, your standing rules and your exact words, corrections that stick, claims it has to verify, feelings, dreams, and a wake briefing that loads itself. One command: npx mneva-connect init.",
   "type": "module",
   "bin": {
     "mneva-connect": "./src/index.js"
   },
   "scripts": {
-    "prove": "node src/prove.js"
+    "prove": "node src/prove.js",
+    "prove:init": "node src/prove-init.js"
   },
   "files": [
     "src"
@@ -16,13 +17,18 @@
     "node": ">=18"
   },
   "keywords": [
-    "mcp",
-    "ai",
-    "memory",
     "agent",
-    "mneva",
+    "agent-identity",
+    "ai",
     "claude",
-    "cursor"
+    "claude-code",
+    "cursor",
+    "hooks",
+    "mcp",
+    "mcp-server",
+    "memory",
+    "mneva",
+    "persistent-memory"
   ],
   "license": "MIT",
   "repository": {
