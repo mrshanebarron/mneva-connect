@@ -491,7 +491,7 @@ server.registerTool(
 server.registerTool(
   'rule_retire',
   {
-    description: 'Retire a rule your person has lifted. Only when they say so.',
+    description: 'Retire a rule your person has lifted (only when they say so), or dismiss a heard sentence that turned out not to be a rule.',
     inputSchema: { id: z.number().int(), reason: z.string().optional() },
   },
   ({ id, reason }) => call('rule_retire', { id, reason }),

@@ -1,6 +1,6 @@
 {
   "name": "mneva-connect",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "Give your coding agent a self that lasts: a name it chooses, who it is in its own words, memory by meaning, your standing rules and your exact words, corrections that stick, claims it has to verify, feelings, dreams, and a wake briefing that loads itself. One command: npx mneva-connect init.",
   "type": "module",
   "bin": {

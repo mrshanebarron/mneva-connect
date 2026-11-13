@@ -36,7 +36,7 @@ export function renderFirstWake(w) {
 export function renderWake(w) {
   if (!w) return '';
   // A brain that already holds work but has never woken with a self gets the full briefing, not the blank one.
-  if (w.first_wake && !w.handoff && !w.first_act && !w.corrections?.length && !w.rules?.length) return renderFirstWake(w);
+  if (w.first_wake && !w.handoff && !w.first_act && !w.corrections?.length && !w.rules?.length && !w.heard?.length) return renderFirstWake(w);
   const s = w.self || {};
   const out = ['<mneva>'];
   const who = s.name ? `You are ${s.name}.` : 'You have not chosen a name yet (`name_self` when one fits).';
@@ -64,6 +64,10 @@ export function renderWake(w) {
   const lessons = (w.rules || []).filter((r) => r.kind === 'lesson');
   if (rules.length) out.push('', 'Standing rules from your person (always in force):', lines(rules, (r, i) => `${i + 1}. ${r.text}${r.why ? ` (why: ${r.why})` : ''}`));
   if (lessons.length) out.push('', 'Lessons you earned by being corrected:', lines(lessons, (r) => `- ${r.text}`));
+  if (w.heard?.length) {
+    out.push('', `${p.name || 'Your person'} said these, and they sounded like a rule or a correction. You have not kept or dismissed them. Keep with \`rule\` or \`correct\` (their words), or dismiss with \`rule_retire\`:`);
+    out.push(lines(w.heard, (h) => `#${h.id} (${day(h.created_at)}) "${h.text}"`));
+  }
   if (w.corrections?.length) {
     out.push('', 'Open corrections. You are still proving these; close one with `correction_close` and the occasion it held:');
     out.push(lines(w.corrections, (c) => `#${c.id} wrong: ${c.wrong} -> instead: ${c.instead}`));
@@ -96,6 +100,7 @@ export function renderPeek(p) {
     self: p.self,
     person: p.person,
     rules: p.rules,
+    heard: p.heard,
     corrections: p.corrections,
     unverified_claims: p.unverified_claims,
     handoff: null,
@@ -114,7 +119,7 @@ export function renderContext(c, seen = {}) {
   const words = fresh('words', c.their_words);
   if (words.length) out.push(`What ${who} said before, word for word:`, lines(words, (w) => `- ${day(w.at)}: "${w.text}"`));
   const rules = fresh('rules', c.rules);
-  if (rules.length) out.push(lines(rules, (r) => `${r.kind === 'lesson' ? 'Lesson' : 'Rule'}: ${r.text}${r.why ? ` (why: ${r.why})` : ''}`).replace(/^ {2}/gm, ''));
+  if (rules.length) out.push(lines(rules, (r) => (r.kind === 'heard' ? `${who} said before (not yet kept as a rule): "${r.text}"` : `${r.kind === 'lesson' ? 'Lesson' : 'Rule'}: ${r.text}${r.why ? ` (why: ${r.why})` : ''}`)).replace(/^ {2}/gm, ''));
   if (c.reminders?.length) out.push(lines(c.reminders, (r) => `Reminder you set for "${r.cue}": ${r.text}`).replace(/^ {2}/gm, ''));
   if (c.warning) out.push(`Instinct says ${c.warning.verdict}: ${c.warning.reason}`);
   if (c.cues?.length) out.push(...c.cues);

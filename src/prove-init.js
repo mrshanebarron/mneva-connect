@@ -73,6 +73,9 @@ try {
   ok(!p3.stdout.includes('You remember'), 'the same memory is not repeated in the same session');
   const p4 = hook('prompt', { prompt: 'from now on, never give me a summary longer than three lines', session_id: 'proof2' });
   ok(p4.stdout.includes('standing rule') && p4.stdout.includes('Still proving'), 'a message that sounds like a rule carries the hint, and the open correction rides along');
+  hook('session-end', { reason: 'exit', session_id: 'proof2' });
+  const third = hook('session-start', { source: 'startup', session_id: 'proof3' });
+  ok(third.stdout.includes('"from now on, never give me a summary longer than three lines"') && third.stdout.includes('sounded like a rule'), 'a rule the agent never kept is shown at the next wake in the person\'s own words');
   const re = hook('session-start', { source: 'compact', session_id: 'proof2' });
   ok(re.stdout.includes('You are Quill') && re.stdout.includes('reread'), 'after a compaction she rereads who she is without starting a new session');
 
