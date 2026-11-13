@@ -78,13 +78,14 @@ npx mneva-connect status          who is in the brain
 npx mneva-connect doctor          check the wiring
 npx mneva-connect export > brain.json
 npx mneva-connect remove          unhook this folder; the brain and key are kept
+npx mneva-connect erase           delete the brain for good
 ```
 
 ## Your messages
 
 By default each message you send is stored in your brain, word for word. That is how the agent can say "on October 30 you said…" with your exact words. Run `init --no-words` to turn it off: messages are then used to find memories and are not kept.
 
-Each brain is separate and has its own key. `export` gives you everything in it as one JSON file.
+Each brain is separate and has its own key. `export` gives you everything in it as one JSON file. `erase` deletes it from the service for good.
 
 ## Other tools
 

@@ -7,7 +7,7 @@
  *
  * See `npx mneva-connect help` and https://mneva.dev/docs
  */
-const COMMANDS = ['init', 'remove', 'status', 'doctor', 'export', 'hook', 'wake', 'help', '--help', '-h'];
+const COMMANDS = ['init', 'remove', 'status', 'doctor', 'export', 'erase', 'hook', 'wake', 'help', '--help', '-h'];
 if (COMMANDS.includes(process.argv[2])) {
   const { runCli } = await import('./cli.js');
   await runCli(process.argv.slice(2));

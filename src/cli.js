@@ -266,6 +266,21 @@ async function exportBrain() {
   process.stdout.write(`${JSON.stringify(r.data, null, 2)}\n`);
 }
 
+async function erase(f) {
+  const cfg = loadConfig();
+  if (!cfg.key) return say('No key found.');
+  const h = await api(cfg, 'GET', 'health');
+  if (!h.ok) return say(h.error);
+  if (f.confirm !== h.data.tenant) {
+    say(`This deletes the whole brain ${h.data.tenant} for good: every memory, the self, all of it. There is no undo.`);
+    say('Take a copy first:  npx mneva-connect export > brain.json');
+    say(`Then run:           npx mneva-connect erase --confirm=${h.data.tenant}`);
+    return;
+  }
+  const r = await api(cfg, 'POST', 'erase', { body: { confirm: f.confirm } });
+  say(r.ok ? `Erased ${r.data.erased}. The key in ${String(cfg.source).replace(homedir(), '~')} no longer opens anything.` : r.error);
+}
+
 function help() {
   say(`mneva-connect ${VERSION}
 
@@ -279,6 +294,7 @@ function help() {
   npx mneva-connect doctor          check the wiring
   npx mneva-connect export > brain.json    everything in the brain, to keep
   npx mneva-connect remove          unhook this folder (the brain is kept)
+  npx mneva-connect erase           delete the brain for good
   npx mneva-connect                 run as an MCP server (what your agent starts)
 
 Docs: https://mneva.dev/docs`);
@@ -292,6 +308,7 @@ export async function runCli(argv) {
   if (cmd === 'status') return status();
   if (cmd === 'doctor') return doctor();
   if (cmd === 'export') return exportBrain();
+  if (cmd === 'erase') return erase(f);
   if (cmd === 'hook') {
     const { runHook } = await import('./hook.js');
     return runHook(rest[0]).catch(() => {});
