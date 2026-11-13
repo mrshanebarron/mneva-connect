@@ -83,7 +83,6 @@ export function renderWake(w) {
   if (w.recent_feelings?.length) out.push('', `Lately you felt: ${w.recent_feelings.map((f) => `${f.word} (${f.context})`).join(' · ')}`);
   if (w.patterns?.length) out.push('', 'Patterns you keep noticing in yourself:', lines(w.patterns, (x) => `- ${x.times} times: ${x.text}`));
   if (w.open_predictions?.length) out.push('', `${w.open_predictions.length} of your predictions are still open (\`predictions_open\`).`);
-  if (w.state?.verdict === 'overloaded') out.push('', 'Your last hour was heavy. Slow down and verify more.');
   out.push('', HOW, '</mneva>');
   return out.join('\n');
 }
@@ -118,6 +117,7 @@ export function renderContext(c, seen = {}) {
   if (rules.length) out.push(lines(rules, (r) => `${r.kind === 'lesson' ? 'Lesson' : 'Rule'}: ${r.text}${r.why ? ` (why: ${r.why})` : ''}`).replace(/^ {2}/gm, ''));
   if (c.reminders?.length) out.push(lines(c.reminders, (r) => `Reminder you set for "${r.cue}": ${r.text}`).replace(/^ {2}/gm, ''));
   if (c.warning) out.push(`Instinct says ${c.warning.verdict}: ${c.warning.reason}`);
+  if (c.cues?.length) out.push(...c.cues);
   if (c.corrections?.length) out.push(`Still proving: ${c.corrections.slice(0, 3).map((x) => `#${x.id} ${x.instead}`).join(' | ')}`);
   return `<mneva>\n${out.join('\n')}\n</mneva>`;
 }

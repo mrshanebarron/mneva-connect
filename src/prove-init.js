@@ -71,6 +71,8 @@ try {
   ok(p2.stdout.includes('Envoyer') && p2.stdout.includes('since Dana last spoke'), 'a message brings back the memory it touches and the gap since Dana spoke');
   const p3 = hook('prompt', { prompt: 'so how do we get the release onto the server again?', session_id: 'proof2' });
   ok(!p3.stdout.includes('You remember'), 'the same memory is not repeated in the same session');
+  const p4 = hook('prompt', { prompt: 'from now on, never give me a summary longer than three lines', session_id: 'proof2' });
+  ok(p4.stdout.includes('standing rule') && p4.stdout.includes('Still proving'), 'a message that sounds like a rule carries the hint, and the open correction rides along');
   const re = hook('session-start', { source: 'compact', session_id: 'proof2' });
   ok(re.stdout.includes('You are Quill') && re.stdout.includes('reread'), 'after a compaction she rereads who she is without starting a new session');
 
@@ -79,7 +81,7 @@ try {
   ok(again.stdout.includes('Connected to your brain') && settings2.hooks.SessionStart.length === 1 && (readFileSync(join(proj, 'CLAUDE.md'), 'utf8').match(/mneva:start/g) || []).length === 1, 'running init twice changes nothing');
   ok(cli(['status']).stdout.includes('Quill') && cli(['doctor']).stdout.split('\n').filter((l) => l.startsWith('FAIL')).length === 0, 'status shows who is there and doctor is clean');
   const dump = JSON.parse(cli(['export']).stdout);
-  ok(dump.tables.said.length === 3 && dump.tables.self_versions.at(-1).name === 'Quill', 'export hands over the whole brain');
+  ok(dump.tables.said.length === 4 && dump.tables.self_versions.at(-1).name === 'Quill', 'export hands over the whole brain');
 
   // Dead engine: a hook must never hold a session up or print an error into it.
   const dead = spawnSync(process.execPath, [join(home, '.mneva', 'bin', 'hook.js'), 'prompt'], { cwd: proj, env: { ...env, MNEVA_API: 'http://127.0.0.1:9' }, input: JSON.stringify({ prompt: 'hello there friend', cwd: proj }), encoding: 'utf8' });
