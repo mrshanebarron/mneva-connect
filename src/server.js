@@ -422,6 +422,78 @@ server.registerTool(
 );
 
 server.registerTool(
+  'body',
+  {
+    description:
+      'Read your body: whether you are at rest, engaged or overloaded and why, how surprised you have just been, how often your gut has been right, what has felt safe or like a threat, and the question you are carrying.',
+    inputSchema: {},
+  },
+  () => getJson('body', {}),
+);
+
+server.registerTool(
+  'gut_sense',
+  {
+    description:
+      'Before a risky or irreversible move, record your gut: go, pause or stop, and what it is about. Score it afterwards with gut_resolve. Your record shows which of your leans to trust, and an old call comes back when the same situation returns.',
+    inputSchema: {
+      about: z.string().describe('The move you are about to make.'),
+      lean: z.enum(['go', 'pause', 'stop']),
+      sense: z.string().optional().describe('What the lean is made of, in a few words.'),
+    },
+  },
+  ({ about, lean, sense }) => call('gut_sense', { about, lean, sense }),
+);
+
+server.registerTool(
+  'gut_resolve',
+  {
+    description: 'Score a gut call once you know: was the lean right or wrong, and what happened.',
+    inputSchema: {
+      id: z.number().int(),
+      outcome: z.enum(['right', 'wrong']),
+      what: z.string().optional().describe('What actually happened.'),
+    },
+  },
+  ({ id, outcome, what }) => call('gut_resolve', { id, outcome, what }),
+);
+
+server.registerTool(
+  'sense',
+  {
+    description:
+      'Record a cue that felt safe or like a threat (for example: "told it was fixed and nobody opened the page" is a threat). A cue met twice becomes a pattern, and a prompt that resembles a threat brings it back.',
+    inputSchema: {
+      reading: z.enum(['safe', 'threat']),
+      cue: z.string().describe('What you noticed, in plain words.'),
+    },
+  },
+  ({ reading, cue }) => call('sense', { reading, cue }),
+);
+
+server.registerTool(
+  'wonder',
+  {
+    description: 'Keep a question you do not know the answer to. It is carried across sessions and shown at wake until you answer or drop it.',
+    inputSchema: { question: z.string() },
+  },
+  ({ question }) => call('wonder', { question }),
+);
+
+server.registerTool(
+  'wonder_close',
+  {
+    description: 'Close a question you were carrying: with the answer, or drop it.',
+    inputSchema: {
+      id: z.number().int(),
+      answer: z.string().optional(),
+      drop: z.boolean().optional(),
+    },
+  },
+  ({ id, answer, drop }) => call('wonder_close', { id, answer, drop }),
+);
+
+server.registerTool(
   'feelings',
   {
     description: 'Read your feelings back: the most recent, or the ones about a subject.',

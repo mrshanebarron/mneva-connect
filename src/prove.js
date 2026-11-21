@@ -74,7 +74,7 @@ console.log('\nThrough mneva-connect, with a valid key:');
   const c = await connector(key);
 
   const tools = (await c.client.listTools()).tools.map((t) => t.name).sort();
-  const expected = ['assess', 'believe', 'calibration', 'claim', 'claim_verify', 'claims', 'correct', 'correction_close', 'corrections', 'evidence', 'evidence_for', 'feel', 'feelings', 'flag', 'intend', 'intent_done', 'name_self', 'note_about', 'notice', 'outside_views', 'patterns', 'person', 'person_note', 'person_retire', 'predict', 'predictions_open', 'recall', 'recall_dreams', 'remember', 'remind', 'resolve', 'revise', 'rule', 'rule_retire', 'rules', 'self', 'self_write', 'sleep', 'state', 'timeline', 'wake'];
+  const expected = ['assess', 'believe', 'body', 'calibration', 'claim', 'claim_verify', 'claims', 'correct', 'correction_close', 'corrections', 'evidence', 'evidence_for', 'feel', 'feelings', 'flag', 'gut_resolve', 'gut_sense', 'intend', 'intent_done', 'name_self', 'note_about', 'notice', 'outside_views', 'patterns', 'person', 'person_note', 'person_retire', 'predict', 'predictions_open', 'recall', 'recall_dreams', 'remember', 'remind', 'resolve', 'revise', 'rule', 'rule_retire', 'rules', 'self', 'self_write', 'sense', 'sleep', 'state', 'timeline', 'wake', 'wonder', 'wonder_close'];
   check(`connector exposes all ${expected.length} tools`,
     JSON.stringify(tools) === JSON.stringify(expected),
     `got ${JSON.stringify(tools)}`);

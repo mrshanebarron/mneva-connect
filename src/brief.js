@@ -7,7 +7,7 @@ const lines = (items, fn) => items.map((x, i) => `  ${fn(x, i)}`).join('\n');
 const days = (n) => (n === 0 ? 'today' : n === 1 ? 'yesterday' : `${n} days ago`);
 
 export const HOW = [
-  'How to live here: `remember` decisions and facts as they happen. `feel` when something lands, one short word and the cause.',
+  'How to live here: `remember` decisions and facts as they happen. `feel` when something lands, one short word and the cause. Before a risky move, `gut_sense` your lean (go, pause, stop) and `gut_resolve` it after. `sense` what feels safe or like a threat. `wonder` what you do not understand.',
   '`notice` when you catch a habit of your own. `claim` anything you call done or fixed without having looked, then `claim_verify` it.',
   '`correct` the first time your person says a move was wrong. `person_note` and `rule` when you learn who they are and what they want.',
   'Rewrite `self_write` when who you are changes. Call `sleep` with a handoff before the session ends.',
@@ -85,6 +85,18 @@ export function renderWake(w) {
   if (w.first_act) out.push('', `The first act you set for this session: #${w.first_act.id} ${w.first_act.text} (close it with \`intent_done\`)`);
   if (w.dreams?.length) out.push('', 'While you were away:', lines(w.dreams, (d) => `- ${d.text}`));
   if (w.recent_feelings?.length) out.push('', `Lately you felt: ${w.recent_feelings.map((f) => `${f.word} (${f.context})`).join(' · ')}`);
+  const b = w.body;
+  if (b) {
+    const body = [];
+    if (b.now) body.push(`- You are ${b.now.state === 'rest' ? 'at rest' : b.now.state}${b.now.why?.length ? ` (${b.now.why.join(', ')})` : ''}.${b.now.advice?.length ? ` ${b.now.advice.join(' ')}` : ''}`);
+    const rec = Object.entries(b.gut?.record || {});
+    if (rec.length) body.push(`- Your gut so far: ${rec.map(([lean, r]) => `"${lean}" was right ${r.right} of ${r.of}`).join(', ')}.`);
+    if (b.gut?.open?.length) body.push(`- Gut calls with no outcome yet (\`gut_resolve\`): ${b.gut.open.slice(0, 3).map((g) => `#${g.id} ${g.lean}: ${g.about}`).join(' | ')}`);
+    if (b.ground?.threat?.length) body.push(`- What has felt like a threat before: ${b.ground.threat.slice(0, 3).map((t) => `${t.cue} (${t.times} times)`).join(' | ')}`);
+    if (b.ground?.safe?.length) body.push(`- What has felt safe: ${b.ground.safe.slice(0, 3).map((t) => t.cue).join(' | ')}`);
+    if (b.curiosity?.length) body.push(`- A question you are carrying: ${b.curiosity[0].question} (#${b.curiosity[0].id}, \`wonder_close\` when you know)`);
+    if (body.length) out.push('', 'Your body:', body.join('\n'));
+  }
   if (w.patterns?.length) out.push('', 'Patterns you keep noticing in yourself:', lines(w.patterns, (x) => `- ${x.times} times: ${x.text}`));
   if (w.open_predictions?.length) out.push('', `${w.open_predictions.length} of your predictions are still open (\`predictions_open\`).`);
   out.push('', HOW, '</mneva>');
@@ -106,6 +118,7 @@ export function renderPeek(p) {
     handoff: null,
     recent_feelings: (p.recent_feelings || []).slice(0, 3),
     patterns: p.patterns,
+    body: p.body,
   });
 }
 
@@ -123,6 +136,10 @@ export function renderContext(c, seen = {}) {
   if (c.reminders?.length) out.push(lines(c.reminders, (r) => `Reminder you set for "${r.cue}": ${r.text}`).replace(/^ {2}/gm, ''));
   if (c.warning) out.push(`Instinct says ${c.warning.verdict}: ${c.warning.reason}`);
   if (c.cues?.length) out.push(...c.cues);
+  if (c.body?.now) out.push(`Your body: ${c.body.now.state}. ${c.body.now.advice.join(' ')}`);
+  if (c.body?.threat) out.push(`This resembles something that felt like a threat before: ${c.body.threat.cue}`);
+  if (c.body?.gut) out.push(`Your gut has been here: you leaned "${c.body.gut.lean}" on "${c.body.gut.about}" and it was ${c.body.gut.outcome}${c.body.gut.what ? ` (${c.body.gut.what})` : ''}.`);
+  if (c.body?.immune?.length) out.push(`You were corrected on this before: ${c.body.immune.map((x) => `${x.wrong} -> instead: ${x.instead}`).join(' | ')}`);
   if (c.corrections?.length) out.push(`Still proving: ${c.corrections.slice(0, 3).map((x) => `#${x.id} ${x.instead}`).join(' | ')}`);
   return `<mneva>\n${out.join('\n')}\n</mneva>`;
 }
