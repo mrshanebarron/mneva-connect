@@ -422,6 +422,68 @@ server.registerTool(
 );
 
 server.registerTool(
+  'mind',
+  {
+    description: 'Read what you are carrying: your priorities and the one in focus, what is pulling at you right now and why, and what you have learned your person values.',
+    inputSchema: {},
+  },
+  () => getJson('mind', {}),
+);
+
+server.registerTool(
+  'priority_add',
+  {
+    description: 'Add something you are carrying to your queue. Weight 3 is the heaviest. It is shown at every wake until you close it.',
+    inputSchema: {
+      text: z.string(),
+      weight: z.number().int().min(1).max(3).optional(),
+      why: z.string().optional(),
+    },
+  },
+  ({ text, weight, why }) => call('priority_add', { text, weight, why }),
+);
+
+server.registerTool(
+  'focus_set',
+  {
+    description: 'Put one open priority in focus. Only one thing is in focus at a time.',
+    inputSchema: { id: z.number().int() },
+  },
+  ({ id }) => call('focus_set', { id }),
+);
+
+server.registerTool(
+  'priority_close',
+  {
+    description: 'Close a priority: done, with a note on how it ended, or dropped.',
+    inputSchema: { id: z.number().int(), note: z.string().optional(), drop: z.boolean().optional() },
+  },
+  ({ id, note, drop }) => call('priority_close', { id, note, drop }),
+);
+
+server.registerTool(
+  'bond_note',
+  {
+    description:
+      'Keep something about the relationship with your person: a value they hold (it comes back when a prompt touches it), or a moment of gratitude, trust or repair between you.',
+    inputSchema: {
+      kind: z.enum(['value', 'gratitude', 'trust', 'repair']),
+      text: z.string(),
+    },
+  },
+  ({ kind, text }) => call('bond_note', { kind, text }),
+);
+
+server.registerTool(
+  'bond_retire',
+  {
+    description: 'Retire a value or moment that is no longer true.',
+    inputSchema: { id: z.number().int() },
+  },
+  ({ id }) => call('bond_retire', { id }),
+);
+
+server.registerTool(
   'body',
   {
     description:

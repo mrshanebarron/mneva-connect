@@ -7,7 +7,7 @@ const lines = (items, fn) => items.map((x, i) => `  ${fn(x, i)}`).join('\n');
 const days = (n) => (n === 0 ? 'today' : n === 1 ? 'yesterday' : `${n} days ago`);
 
 export const HOW = [
-  'How to live here: `remember` decisions and facts as they happen. `feel` when something lands, one short word and the cause. Before a risky move, `gut_sense` your lean (go, pause, stop) and `gut_resolve` it after. `sense` what feels safe or like a threat. `wonder` what you do not understand.',
+  'How to live here: `remember` decisions and facts as they happen. `feel` when something lands, one short word and the cause. Before a risky move, `gut_sense` your lean (go, pause, stop) and `gut_resolve` it after. `sense` what feels safe or like a threat. `wonder` what you do not understand. Keep what you are carrying in `priority_add` with one in `focus_set`, and what your person values in `bond_note`.',
   '`notice` when you catch a habit of your own. `claim` anything you call done or fixed without having looked, then `claim_verify` it.',
   '`correct` the first time your person says a move was wrong. `person_note` and `rule` when you learn who they are and what they want.',
   'Rewrite `self_write` when who you are changes. Call `sleep` with a handoff before the session ends.',
@@ -85,6 +85,17 @@ export function renderWake(w) {
   if (w.first_act) out.push('', `The first act you set for this session: #${w.first_act.id} ${w.first_act.text} (close it with \`intent_done\`)`);
   if (w.dreams?.length) out.push('', 'While you were away:', lines(w.dreams, (d) => `- ${d.text}`));
   if (w.recent_feelings?.length) out.push('', `Lately you felt: ${w.recent_feelings.map((f) => `${f.word} (${f.context})`).join(' · ')}`);
+  const m = w.mind;
+  if (m) {
+    const mind = [];
+    if (m.focus) mind.push(`- In focus: #${m.focus.id} ${m.focus.text}`);
+    const rest = (m.queue || []).filter((x) => !x.focus).slice(0, 3);
+    if (rest.length) mind.push(`- Also carrying: ${rest.map((x) => `#${x.id} ${x.text}`).join(' | ')}`);
+    if (m.drives?.direction) mind.push(`- The strongest pull right now is to ${m.drives.direction.drive} (${m.drives.direction.because}).`);
+    if (m.bond?.values?.length) mind.push(`- What ${p.name || 'your person'} values: ${m.bond.values.slice(0, 4).map((v) => v.text).join(' | ')}`);
+    if (m.bond?.moments?.length) mind.push(`- Between you lately: ${m.bond.moments.slice(0, 2).map((v) => `${v.kind}: ${v.text}`).join(' | ')}`);
+    if (mind.length) out.push('', 'What you are carrying:', mind.join('\n'));
+  }
   const b = w.body;
   if (b) {
     const body = [];
@@ -119,6 +130,7 @@ export function renderPeek(p) {
     recent_feelings: (p.recent_feelings || []).slice(0, 3),
     patterns: p.patterns,
     body: p.body,
+    mind: p.mind,
   });
 }
 
@@ -136,6 +148,7 @@ export function renderContext(c, seen = {}) {
   if (c.reminders?.length) out.push(lines(c.reminders, (r) => `Reminder you set for "${r.cue}": ${r.text}`).replace(/^ {2}/gm, ''));
   if (c.warning) out.push(`Instinct says ${c.warning.verdict}: ${c.warning.reason}`);
   if (c.cues?.length) out.push(...c.cues);
+  if (c.values?.length) out.push(`Your person values: ${c.values.map((v) => v.text).join(' | ')}`);
   if (c.body?.now) out.push(`Your body: ${c.body.now.state}. ${c.body.now.advice.join(' ')}`);
   if (c.body?.threat) out.push(`This resembles something that felt like a threat before: ${c.body.threat.cue}`);
   if (c.body?.gut) out.push(`Your gut has been here: you leaned "${c.body.gut.lean}" on "${c.body.gut.about}" and it was ${c.body.gut.outcome}${c.body.gut.what ? ` (${c.body.gut.what})` : ''}.`);
