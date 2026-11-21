@@ -83,6 +83,7 @@ export function renderWake(w) {
     out.push(`  ${w.handoff.text}`);
   }
   if (w.first_act) out.push('', `The first act you set for this session: #${w.first_act.id} ${w.first_act.text} (close it with \`intent_done\`)`);
+  if (w.review) out.push('', `Last night's review (${w.review.day}): ${w.review.text}${w.review.change ? `\n  One thing to change today: ${w.review.change}` : ''}`);
   if (w.dreams?.length) out.push('', 'While you were away:', lines(w.dreams, (d) => `- ${d.text}`));
   if (w.recent_feelings?.length) out.push('', `Lately you felt: ${w.recent_feelings.map((f) => `${f.word} (${f.context})`).join(' · ')}`);
   const m = w.mind;
